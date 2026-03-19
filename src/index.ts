@@ -62,10 +62,13 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", tenants: tenantStore.getAll().length });
 });
 
-// Admin UI at root
-app.use("/", createAdminRouter(tenantStore));
+// Admin UI at /admin (behind basic auth)
+app.use("/admin", createAdminRouter(tenantStore));
 
-// MCP endpoints — /:tenant catches remaining slugs
+// Root redirects to admin
+app.get("/", (_req, res) => res.redirect("/admin"));
+
+// MCP endpoints — /:tenant (no auth, open for MCP clients)
 app.use("/", createMcpRouter(tenantStore, sessionManager));
 
 // Start server

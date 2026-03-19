@@ -9,7 +9,7 @@ import { TenantStore } from "../tenant-store.js";
 import { SessionManager } from "../session-manager.js";
 import { createMcpForTenant } from "../mcp-factory.js";
 
-const RESERVED_PATHS = new Set(["health", "tenants", "style.css"]);
+const RESERVED_PATHS = new Set(["health", "admin", "style.css"]);
 
 export function createMcpRouter(tenantStore: TenantStore, sessionManager: SessionManager): Router {
   const router = Router();

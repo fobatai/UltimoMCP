@@ -73,7 +73,7 @@ export function createAdminRouter(tenantStore: TenantStore): Router {
       }
 
       tenantStore.create(input);
-      res.redirect("/?message=Tenant aangemaakt");
+      res.redirect("/admin?message=Tenant aangemaakt");
     } catch (e: any) {
       const msg = e.message.includes("UNIQUE") ? "Slug is al in gebruik." : e.message;
       res.send(renderLayout("Nieuwe Tenant", renderTenantForm(undefined, msg)));
@@ -84,7 +84,7 @@ export function createAdminRouter(tenantStore: TenantStore): Router {
   router.get("/tenants/:id/edit", (req: Request, res: Response) => {
     const tenant = tenantStore.getById(Number(req.params.id));
     if (!tenant) {
-      res.redirect("/?message=Tenant niet gevonden");
+      res.redirect("/admin?message=Tenant niet gevonden");
       return;
     }
     res.send(renderLayout(`Bewerk: ${tenant.name}`, renderTenantForm(tenant)));
@@ -105,10 +105,10 @@ export function createAdminRouter(tenantStore: TenantStore): Router {
 
       const updated = tenantStore.update(id, input);
       if (!updated) {
-        res.redirect("/?message=Tenant niet gevonden");
+        res.redirect("/admin?message=Tenant niet gevonden");
         return;
       }
-      res.redirect("/?message=Tenant bijgewerkt");
+      res.redirect("/admin?message=Tenant bijgewerkt");
     } catch (e: any) {
       const tenant = tenantStore.getById(id);
       const msg = e.message.includes("UNIQUE") ? "Slug is al in gebruik." : e.message;
@@ -119,7 +119,7 @@ export function createAdminRouter(tenantStore: TenantStore): Router {
   // POST /tenants/:id/delete — delete tenant
   router.post("/tenants/:id/delete", (req: Request, res: Response) => {
     tenantStore.delete(Number(req.params.id));
-    res.redirect("/?message=Tenant verwijderd");
+    res.redirect("/admin?message=Tenant verwijderd");
   });
 
   // GET /tenants/:id/test — test API connection

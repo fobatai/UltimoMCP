@@ -23,10 +23,10 @@ export function renderLayout(title: string, body: string): string {
 </head>
 <body>
   <nav>
-    <a href="/" class="logo">Ultimo MCP</a>
+    <a href="/admin" class="logo">Ultimo MCP</a>
     <span class="nav-sep">|</span>
-    <a href="/">Tenants</a>
-    <a href="/tenants/new">+ Nieuwe Tenant</a>
+    <a href="/admin">Tenants</a>
+    <a href="/admin/tenants/new">+ Nieuwe Tenant</a>
   </nav>
   <main>
     <h1>${escapeHtml(title)}</h1>
@@ -40,7 +40,7 @@ export function renderTenantList(tenants: TenantConfig[], message?: string): str
   const msg = message ? `<div class="message">${escapeHtml(message)}</div>` : "";
 
   if (tenants.length === 0) {
-    return `${msg}<p>Geen tenants geconfigureerd. <a href="/tenants/new">Voeg er een toe</a>.</p>`;
+    return `${msg}<p>Geen tenants geconfigureerd. <a href="/admin/tenants/new">Voeg er een toe</a>.</p>`;
   }
 
   const rows = tenants.map(t => `
@@ -51,7 +51,7 @@ export function renderTenantList(tenants: TenantConfig[], message?: string): str
       <td><code>${escapeHtml(t.base_url)}</code></td>
       <td><code>/${escapeHtml(t.slug)}</code></td>
       <td>
-        <a href="/tenants/${t.id}/edit" class="btn btn-sm">Bewerk</a>
+        <a href="/admin/tenants/${t.id}/edit" class="btn btn-sm">Bewerk</a>
         <button class="btn btn-sm btn-test" onclick="testConnection(${t.id}, this)">Test</button>
       </td>
     </tr>
@@ -75,7 +75,7 @@ export function renderTenantList(tenants: TenantConfig[], message?: string): str
       async function testConnection(id, btn) {
         btn.textContent = '...';
         try {
-          const res = await fetch('/tenants/' + id + '/test');
+          const res = await fetch('/admin/tenants/' + id + '/test');
           const data = await res.json();
           btn.textContent = data.success ? 'OK' : 'Fout';
           btn.title = data.success ? data.message : data.error;
@@ -137,9 +137,9 @@ export function renderTenantForm(tenant?: TenantConfig, errorMessage?: string): 
 
       <div class="actions">
         <button type="submit" class="btn btn-primary">${isEdit ? "Opslaan" : "Aanmaken"}</button>
-        <a href="/" class="btn">Annuleren</a>
+        <a href="/admin" class="btn">Annuleren</a>
         ${isEdit ? `
-          <form method="POST" action="/tenants/${tenant!.id}/delete" style="display:inline"
+          <form method="POST" action="/admin/tenants/${tenant!.id}/delete" style="display:inline"
             onsubmit="return confirm('Weet je het zeker?')">
             <button type="submit" class="btn btn-danger">Verwijderen</button>
           </form>
