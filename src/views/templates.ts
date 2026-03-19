@@ -92,7 +92,7 @@ export function renderTenantList(tenants: TenantConfig[], message?: string): str
 
 export function renderTenantForm(tenant?: TenantConfig, errorMessage?: string): string {
   const isEdit = !!tenant;
-  const action = isEdit ? `/tenants/${tenant!.id}` : "/tenants";
+  const action = isEdit ? `/admin/tenants/${tenant!.id}` : "/admin/tenants";
   const err = errorMessage ? `<div class="error">${escapeHtml(errorMessage)}</div>` : "";
   const guidsJson = tenant ? JSON.stringify(tenant.action_guids, null, 2) : "{}";
 
