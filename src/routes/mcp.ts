@@ -43,13 +43,12 @@ export function createMcpRouter(tenantStore: TenantStore, sessionManager: Sessio
       return;
     }
 
-    // New session — create transport with session ID generator
+    // New session — create server + transport, connect, then handle
+    const server = createMcpForTenant(tenantConfig);
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (newSessionId: string) => {
         console.log(`New MCP session ${newSessionId} for tenant ${tenantConfig.slug}`);
-        const server = createMcpForTenant(tenantConfig);
-
         sessionManager.set(newSessionId, {
           server,
           transport,
@@ -57,11 +56,10 @@ export function createMcpRouter(tenantStore: TenantStore, sessionManager: Sessio
           createdAt: Date.now(),
           lastActivity: Date.now(),
         });
-
-        server.connect(transport);
       },
     });
 
+    await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
   });
 
