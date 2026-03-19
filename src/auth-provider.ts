@@ -32,7 +32,7 @@ export class TenantClientsStore implements OAuthRegisteredClientsStore {
     return {
       client_id: tenant.client_id,
       client_secret: tenant.client_secret,
-      redirect_uris: [],  // Claude handles redirect URIs dynamically
+      redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
       grant_types: ["authorization_code"],
       response_types: ["code"],
       token_endpoint_auth_method: "client_secret_post",
