@@ -3,6 +3,7 @@
  */
 import Database from "better-sqlite3";
 import { resolve } from "path";
+import { mkdirSync } from "fs";
 
 export interface TenantConfig {
   id: number;
@@ -49,6 +50,7 @@ export class TenantStore {
   private db: Database.Database;
 
   constructor(dataDir: string) {
+    mkdirSync(dataDir, { recursive: true });
     const dbPath = resolve(dataDir, "tenants.db");
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
