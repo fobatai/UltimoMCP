@@ -116,6 +116,12 @@ export function createAdminRouter(tenantStore: TenantStore, baseDomain: string):
     }
   });
 
+  // POST /tenants/:id/regenerate — regenerate OAuth credentials
+  router.post("/tenants/:id/regenerate", (req: Request, res: Response) => {
+    tenantStore.regenerateCredentials(Number(req.params.id));
+    res.redirect(`/admin/tenants/${req.params.id}/edit?message=Credentials opnieuw gegenereerd`);
+  });
+
   // POST /tenants/:id/delete — delete tenant
   router.post("/tenants/:id/delete", (req: Request, res: Response) => {
     tenantStore.delete(Number(req.params.id));

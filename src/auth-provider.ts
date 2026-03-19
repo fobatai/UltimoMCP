@@ -1,6 +1,7 @@
 /**
  * SQLite-backed OAuth 2.1 provider for MCP authentication.
- * Implements OAuthServerProvider from the MCP SDK.
+ * Clients are pre-registered per tenant — no dynamic registration.
+ * Each tenant has a unique client_id + client_secret.
  */
 import { randomUUID, randomBytes } from "crypto";
 import type { Response } from "express";
@@ -9,6 +10,7 @@ import type { OAuthRegisteredClientsStore } from "@modelcontextprotocol/sdk/serv
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
 import type Database from "better-sqlite3";
+import type { TenantStore } from "./tenant-store.js";
 
 type AuthorizationParams = {
   state?: string;
@@ -18,41 +20,42 @@ type AuthorizationParams = {
   resource?: URL;
 };
 
-// ── Client Store ──────────────────────────────────────────────
+// ── Client Store — reads from tenants table ───────────────────
 
-export class SqliteClientsStore implements OAuthRegisteredClientsStore {
-  constructor(private db: Database.Database) {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS oauth_clients (
-        client_id TEXT PRIMARY KEY,
-        client_data TEXT NOT NULL,
-        created_at TEXT DEFAULT (datetime('now'))
-      );
-    `);
-  }
+export class TenantClientsStore implements OAuthRegisteredClientsStore {
+  constructor(private tenantStore: TenantStore) {}
 
   async getClient(clientId: string): Promise<OAuthClientInformationFull | undefined> {
-    const row = this.db.prepare("SELECT client_data FROM oauth_clients WHERE client_id = ?")
-      .get(clientId) as { client_data: string } | undefined;
-    return row ? JSON.parse(row.client_data) : undefined;
+    const tenant = this.tenantStore.getByClientId(clientId);
+    if (!tenant) return undefined;
+
+    return {
+      client_id: tenant.client_id,
+      client_secret: tenant.client_secret,
+      redirect_uris: [],  // Claude handles redirect URIs dynamically
+      grant_types: ["authorization_code"],
+      response_types: ["code"],
+      token_endpoint_auth_method: "client_secret_post",
+      client_name: tenant.name,
+      client_id_issued_at: Math.floor(new Date(tenant.created_at).getTime() / 1000),
+    } as OAuthClientInformationFull;
   }
 
-  async registerClient(client: OAuthClientInformationFull): Promise<OAuthClientInformationFull> {
-    this.db.prepare("INSERT OR REPLACE INTO oauth_clients (client_id, client_data) VALUES (?, ?)")
-      .run(client.client_id, JSON.stringify(client));
-    return client;
-  }
+  // No dynamic registration — clients are created via admin panel
+  // registerClient is intentionally not implemented
 }
 
 // ── Auth Provider ─────────────────────────────────────────────
 
 export class UltimoAuthProvider implements OAuthServerProvider {
-  public readonly clientsStore: SqliteClientsStore;
+  public readonly clientsStore: TenantClientsStore;
   private db: Database.Database;
+  private tenantStore: TenantStore;
 
-  constructor(db: Database.Database) {
+  constructor(db: Database.Database, tenantStore: TenantStore) {
     this.db = db;
-    this.clientsStore = new SqliteClientsStore(db);
+    this.tenantStore = tenantStore;
+    this.clientsStore = new TenantClientsStore(tenantStore);
 
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS oauth_codes (
@@ -80,8 +83,7 @@ export class UltimoAuthProvider implements OAuthServerProvider {
     params: AuthorizationParams,
     res: Response
   ): Promise<void> {
-    // Auto-approve: generate code immediately (no login screen needed —
-    // the MCP client already authenticated with client_id/secret)
+    // Auto-approve: the client already authenticated with client_id/secret
     const code = randomUUID();
 
     this.db.prepare(`
@@ -125,10 +127,8 @@ export class UltimoAuthProvider implements OAuthServerProvider {
     if (!row) throw new Error("Invalid authorization code");
     if (row.client_id !== client.client_id) throw new Error("Code not issued to this client");
 
-    // Delete used code
     this.db.prepare("DELETE FROM oauth_codes WHERE code = ?").run(authorizationCode);
 
-    // Create access token
     const token = randomBytes(32).toString("hex");
     const expiresAt = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
 
@@ -166,5 +166,11 @@ export class UltimoAuthProvider implements OAuthServerProvider {
       scopes: row.scopes ? row.scopes.split(" ") : [],
       expiresAt: Math.floor(row.expires_at / 1000),
     };
+  }
+
+  /** Check if a client_id is allowed to access a specific tenant */
+  isClientAllowedForTenant(clientId: string, tenantSlug: string): boolean {
+    const tenant = this.tenantStore.getBySlug(tenantSlug);
+    return tenant !== undefined && tenant.client_id === clientId;
   }
 }

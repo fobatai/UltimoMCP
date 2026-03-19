@@ -33,12 +33,12 @@ export function renderLayout(title: string, body: string): string {
     ${body}
   </main>
   <script>
-    function copyUrl(btn) {
-      const url = btn.previousElementSibling.textContent;
-      navigator.clipboard.writeText(url).then(() => {
+    function copyText(text, btn) {
+      navigator.clipboard.writeText(text).then(() => {
+        const orig = btn.textContent;
         btn.textContent = 'Gekopieerd!';
         btn.classList.add('btn-ok');
-        setTimeout(() => { btn.textContent = 'Kopieer'; btn.classList.remove('btn-ok'); }, 1500);
+        setTimeout(() => { btn.textContent = orig; btn.classList.remove('btn-ok'); }, 1500);
       });
     }
   </script>
@@ -60,17 +60,29 @@ export function renderTenantList(tenants: TenantConfig[], baseDomain: string, me
       <td><span class="status-dot ${t.is_active ? "active" : "inactive"}"></span></td>
       <td><strong>${escapeHtml(t.name)}</strong></td>
       <td><code>${escapeHtml(t.slug)}</code></td>
-      <td><code>${escapeHtml(t.base_url)}</code></td>
-      <td class="url-cell">
-        <code class="url-text">${escapeHtml(mcpUrl)}</code>
-        <button class="btn btn-sm btn-copy" onclick="copyUrl(this)">Kopieer</button>
-      </td>
       <td>
         <a href="/admin/tenants/${t.id}/edit" class="btn btn-sm">Bewerk</a>
         <button class="btn btn-sm btn-test" onclick="testConnection(${t.id}, this)">Test</button>
       </td>
     </tr>
-  `;
+    <tr class="details-row">
+      <td></td>
+      <td colspan="3">
+        <div class="credential-grid">
+          <span class="cred-label">MCP URL</span>
+          <code class="cred-value">${escapeHtml(mcpUrl)}</code>
+          <button class="btn btn-sm btn-copy" onclick="copyText('${escapeHtml(mcpUrl)}', this)">Kopieer</button>
+
+          <span class="cred-label">Client ID</span>
+          <code class="cred-value">${escapeHtml(t.client_id)}</code>
+          <button class="btn btn-sm btn-copy" onclick="copyText('${escapeHtml(t.client_id)}', this)">Kopieer</button>
+
+          <span class="cred-label">Client Secret</span>
+          <code class="cred-value secret">${escapeHtml(t.client_secret)}</code>
+          <button class="btn btn-sm btn-copy" onclick="copyText('${escapeHtml(t.client_secret)}', this)">Kopieer</button>
+        </div>
+      </td>
+    </tr>`;
   }).join("");
 
   return `${msg}
@@ -80,8 +92,6 @@ export function renderTenantList(tenants: TenantConfig[], baseDomain: string, me
           <th></th>
           <th>Naam</th>
           <th>Slug</th>
-          <th>Base URL</th>
-          <th>MCP Endpoint</th>
           <th>Acties</th>
         </tr>
       </thead>
@@ -112,7 +122,27 @@ export function renderTenantForm(tenant?: TenantConfig, errorMessage?: string): 
   const err = errorMessage ? `<div class="error">${escapeHtml(errorMessage)}</div>` : "";
   const guidsJson = tenant ? JSON.stringify(tenant.action_guids, null, 2) : "{}";
 
+  const credentialsBlock = isEdit ? `
+    <div class="credentials-box">
+      <h3>OAuth Credentials</h3>
+      <div class="credential-grid">
+        <span class="cred-label">Client ID</span>
+        <code class="cred-value">${escapeHtml(tenant!.client_id)}</code>
+        <button type="button" class="btn btn-sm btn-copy" onclick="copyText('${escapeHtml(tenant!.client_id)}', this)">Kopieer</button>
+
+        <span class="cred-label">Client Secret</span>
+        <code class="cred-value secret">${escapeHtml(tenant!.client_secret)}</code>
+        <button type="button" class="btn btn-sm btn-copy" onclick="copyText('${escapeHtml(tenant!.client_secret)}', this)">Kopieer</button>
+      </div>
+      <form method="POST" action="/admin/tenants/${tenant!.id}/regenerate" style="margin-top:8px"
+        onsubmit="return confirm('Weet je het zeker? De oude credentials werken dan niet meer.')">
+        <button type="submit" class="btn btn-sm btn-danger">Credentials opnieuw genereren</button>
+      </form>
+    </div>
+  ` : "";
+
   return `${err}
+    ${credentialsBlock}
     <form method="POST" action="${action}">
       <div class="field">
         <label for="slug">Slug <small>(URL-pad, alleen a-z, 0-9, -)</small></label>

@@ -63,7 +63,7 @@ const tenantStore = new TenantStore(DATA_DIR);
 const sessionManager = new SessionManager();
 
 // Initialize OAuth provider (shares SQLite DB with tenant store)
-const authProvider = new UltimoAuthProvider(tenantStore.getDb());
+const authProvider = new UltimoAuthProvider(tenantStore.getDb(), tenantStore);
 const issuerUrl = new URL(BASE_DOMAIN);
 
 // OAuth endpoints (/.well-known/*, /authorize, /token, /register)
@@ -90,8 +90,8 @@ app.use("/admin", createAdminRouter(tenantStore, BASE_DOMAIN));
 // Root redirects to admin
 app.get("/", (_req, res) => res.redirect("/admin"));
 
-// MCP endpoints — /:tenant (protected by OAuth bearer token)
-app.use("/", createMcpRouter(tenantStore, sessionManager, bearerAuth));
+// MCP endpoints — /:tenant (protected by OAuth bearer token, scoped to tenant)
+app.use("/", createMcpRouter(tenantStore, sessionManager, bearerAuth, authProvider));
 
 // Start server
 app.listen(PORT, () => {
