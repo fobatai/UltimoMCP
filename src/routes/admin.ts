@@ -6,7 +6,7 @@ import { Router, Request, Response } from "express";
 import { TenantStore, TenantInput } from "../tenant-store.js";
 import { renderLayout, renderTenantList, renderTenantForm } from "../views/templates.js";
 
-export function createAdminRouter(tenantStore: TenantStore): Router {
+export function createAdminRouter(tenantStore: TenantStore, baseDomain: string): Router {
   const router = Router();
 
   // Basic Auth middleware
@@ -42,7 +42,7 @@ export function createAdminRouter(tenantStore: TenantStore): Router {
   router.get("/", (req: Request, res: Response) => {
     const tenants = tenantStore.getAll();
     const message = req.query.message as string | undefined;
-    res.send(renderLayout("Tenants", renderTenantList(tenants, message)));
+    res.send(renderLayout("Tenants", renderTenantList(tenants, baseDomain, message)));
   });
 
   // GET /tenants/new — new tenant form

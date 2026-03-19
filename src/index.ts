@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 /**
- * Ultimo MCP Server — Multi-tenant HTTP edition.
+ * Ultimo MCP Server — Multi-tenant HTTP edition with OAuth 2.1.
  *
- * Each tenant gets a dedicated MCP endpoint at /:tenant/mcp.
+ * Each tenant gets a dedicated MCP endpoint at /:tenant.
  * Admin UI at /admin for tenant CRUD management.
+ * OAuth 2.1 authentication for MCP clients.
  */
 
 import express from "express";
@@ -13,6 +14,9 @@ import { TenantStore } from "./tenant-store.js";
 import { SessionManager } from "./session-manager.js";
 import { createMcpRouter } from "./routes/mcp.js";
 import { createAdminRouter } from "./routes/admin.js";
+import { UltimoAuthProvider } from "./auth-provider.js";
+import { mcpAuthRouter } from "@modelcontextprotocol/sdk/server/auth/router.js";
+import { requireBearerAuth } from "@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,6 +47,7 @@ loadEnv();
 
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const DATA_DIR = process.env.DATA_DIR || resolve(__dirname, "..", "data");
+const BASE_DOMAIN = process.env.BASE_DOMAIN || `http://localhost:${PORT}`;
 
 const app = express();
 
@@ -57,25 +62,43 @@ app.use(express.static(resolve(__dirname, "..", "public")));
 const tenantStore = new TenantStore(DATA_DIR);
 const sessionManager = new SessionManager();
 
-// Health check
+// Initialize OAuth provider (shares SQLite DB with tenant store)
+const authProvider = new UltimoAuthProvider(tenantStore.getDb());
+const issuerUrl = new URL(BASE_DOMAIN);
+
+// OAuth endpoints (/.well-known/*, /authorize, /token, /register)
+app.use(mcpAuthRouter({
+  provider: authProvider,
+  issuerUrl,
+  scopesSupported: ["mcp:tools"],
+}));
+
+// Bearer auth middleware for MCP endpoints
+const bearerAuth = requireBearerAuth({
+  verifier: authProvider,
+  resourceMetadataUrl: `${BASE_DOMAIN}/.well-known/oauth-protected-resource`,
+});
+
+// Health check (no auth)
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", tenants: tenantStore.getAll().length });
 });
 
 // Admin UI at /admin (behind basic auth)
-app.use("/admin", createAdminRouter(tenantStore));
+app.use("/admin", createAdminRouter(tenantStore, BASE_DOMAIN));
 
 // Root redirects to admin
 app.get("/", (_req, res) => res.redirect("/admin"));
 
-// MCP endpoints — /:tenant (no auth, open for MCP clients)
-app.use("/", createMcpRouter(tenantStore, sessionManager));
+// MCP endpoints — /:tenant (protected by OAuth bearer token)
+app.use("/", createMcpRouter(tenantStore, sessionManager, bearerAuth));
 
 // Start server
 app.listen(PORT, () => {
   console.log(`Ultimo MCP server running on port ${PORT}`);
-  console.log(`Admin UI: http://localhost:${PORT}/`);
-  console.log(`MCP endpoints: http://localhost:${PORT}/{tenant}`);
+  console.log(`Admin UI: ${BASE_DOMAIN}/admin`);
+  console.log(`MCP endpoints: ${BASE_DOMAIN}/{tenant}`);
+  console.log(`OAuth endpoints: ${BASE_DOMAIN}/.well-known/oauth-authorization-server`);
 });
 
 // Graceful shutdown

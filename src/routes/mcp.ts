@@ -1,17 +1,18 @@
 /**
  * MCP endpoint router: /:tenant
  * Handles Streamable HTTP MCP transport per tenant.
+ * Protected by OAuth 2.1 bearer token.
  */
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, RequestHandler } from "express";
 import { randomUUID } from "crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { TenantStore } from "../tenant-store.js";
 import { SessionManager } from "../session-manager.js";
 import { createMcpForTenant } from "../mcp-factory.js";
 
-const RESERVED_PATHS = new Set(["health", "admin", "style.css"]);
+const RESERVED_PATHS = new Set(["health", "admin", "style.css", "authorize", "token", "register", "revoke", ".well-known"]);
 
-export function createMcpRouter(tenantStore: TenantStore, sessionManager: SessionManager): Router {
+export function createMcpRouter(tenantStore: TenantStore, sessionManager: SessionManager, bearerAuth: RequestHandler): Router {
   const router = Router();
 
   // Tenant lookup middleware — skip reserved paths
@@ -26,6 +27,9 @@ export function createMcpRouter(tenantStore: TenantStore, sessionManager: Sessio
     (req as any).tenantConfig = tenant;
     next();
   });
+
+  // Apply bearer auth to all tenant routes
+  router.use("/:tenant", bearerAuth);
 
   // POST: Initialize new session or send message to existing session
   router.post("/:tenant", async (req: Request, res: Response) => {

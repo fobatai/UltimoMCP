@@ -131,6 +131,10 @@ export class TenantStore {
     return result.changes > 0;
   }
 
+  getDb(): Database.Database {
+    return this.db;
+  }
+
   close() {
     this.db.close();
   }

@@ -32,30 +32,46 @@ export function renderLayout(title: string, body: string): string {
     <h1>${escapeHtml(title)}</h1>
     ${body}
   </main>
+  <script>
+    function copyUrl(btn) {
+      const url = btn.previousElementSibling.textContent;
+      navigator.clipboard.writeText(url).then(() => {
+        btn.textContent = 'Gekopieerd!';
+        btn.classList.add('btn-ok');
+        setTimeout(() => { btn.textContent = 'Kopieer'; btn.classList.remove('btn-ok'); }, 1500);
+      });
+    }
+  </script>
 </body>
 </html>`;
 }
 
-export function renderTenantList(tenants: TenantConfig[], message?: string): string {
+export function renderTenantList(tenants: TenantConfig[], baseDomain: string, message?: string): string {
   const msg = message ? `<div class="message">${escapeHtml(message)}</div>` : "";
 
   if (tenants.length === 0) {
     return `${msg}<p>Geen tenants geconfigureerd. <a href="/admin/tenants/new">Voeg er een toe</a>.</p>`;
   }
 
-  const rows = tenants.map(t => `
+  const rows = tenants.map(t => {
+    const mcpUrl = `${baseDomain}/${t.slug}`;
+    return `
     <tr>
       <td><span class="status-dot ${t.is_active ? "active" : "inactive"}"></span></td>
       <td><strong>${escapeHtml(t.name)}</strong></td>
       <td><code>${escapeHtml(t.slug)}</code></td>
       <td><code>${escapeHtml(t.base_url)}</code></td>
-      <td><code>/${escapeHtml(t.slug)}</code></td>
+      <td class="url-cell">
+        <code class="url-text">${escapeHtml(mcpUrl)}</code>
+        <button class="btn btn-sm btn-copy" onclick="copyUrl(this)">Kopieer</button>
+      </td>
       <td>
         <a href="/admin/tenants/${t.id}/edit" class="btn btn-sm">Bewerk</a>
         <button class="btn btn-sm btn-test" onclick="testConnection(${t.id}, this)">Test</button>
       </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   return `${msg}
     <table>
